@@ -1,0 +1,193 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-01-20T06:31:41.918Z",
+  "assets": {
+    "base": {
+      "category": "buildings",
+      "path": "assets/buildings/base.png",
+      "size": {
+        "width": 256,
+        "height": 256
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "tower": {
+      "category": "buildings",
+      "path": "assets/buildings/tower.png",
+      "size": {
+        "width": 128,
+        "height": 192
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "barracks": {
+      "category": "buildings",
+      "path": "assets/buildings/barracks.png",
+      "size": {
+        "width": 256,
+        "height": 256
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "factory": {
+      "category": "buildings",
+      "path": "assets/buildings/factory.png",
+      "size": {
+        "width": 256,
+        "height": 256
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "collector": {
+      "category": "units",
+      "path": "assets/units/collector.png",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "frames": 4,
+      "animated": true,
+      "generated": true
+    },
+    "firecracker_soldier": {
+      "category": "units",
+      "path": "assets/units/firecracker_soldier.png",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "frames": 4,
+      "animated": true,
+      "generated": false
+    },
+    "nian_beast": {
+      "category": "units",
+      "path": "assets/units/nian_beast.png",
+      "size": {
+        "width": 96,
+        "height": 96
+      },
+      "frames": 4,
+      "animated": true,
+      "generated": false
+    },
+    "dragon_dancer": {
+      "category": "units",
+      "path": "assets/units/dragon_dancer.png",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "frames": 4,
+      "animated": true,
+      "generated": false
+    },
+    "resource_gold": {
+      "category": "resources",
+      "path": "assets/resources/resource_gold.png",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "resource_firework": {
+      "category": "resources",
+      "path": "assets/resources/resource_firework.png",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "hongbao": {
+      "category": "resources",
+      "path": "assets/resources/hongbao.png",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "explosion": {
+      "category": "effects",
+      "path": "assets/effects/explosion.png",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "frames": 6,
+      "animated": true,
+      "generated": false
+    },
+    "smoke": {
+      "category": "effects",
+      "path": "assets/effects/smoke.png",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "frames": 4,
+      "animated": true,
+      "generated": false
+    },
+    "ui_button": {
+      "category": "ui",
+      "path": "assets/ui/ui_button.png",
+      "size": {
+        "width": 120,
+        "height": 40
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "ui_panel": {
+      "category": "ui",
+      "path": "assets/ui/ui_panel.png",
+      "size": {
+        "width": 300,
+        "height": 200
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "tile_grass": {
+      "category": "tiles",
+      "path": "assets/tiles/tile_grass.png",
+      "size": {
+        "width": 64,
+        "height": 32
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    },
+    "tile_path": {
+      "category": "tiles",
+      "path": "assets/tiles/tile_path.png",
+      "size": {
+        "width": 64,
+        "height": 32
+      },
+      "frames": 1,
+      "animated": false,
+      "generated": false
+    }
+  }
+}

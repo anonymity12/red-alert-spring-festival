@@ -29,8 +29,9 @@ A 2.5D Real-Time Strategy (RTS) game built with React and Three.js, featuring a 
 - **Socket.io** - WebSocket 实时通信服务器
 
 ### 资源生成 (Asset Generation)
-- **Gemini API** - AI 图片生成（可选）
-- **Spritesmith** - 雪碧图合成（规划中）
+- **Gemini API** - AI 图片生成，自动生成春节主题游戏素材
+- **Spritesmith** - 雪碧图合成，将动画帧合成为单张图片
+- **自动化脚本** - 批量生成、分类管理、清单生成
 
 ## 🚀 快速开始 (Quick Start)
 
@@ -50,10 +51,10 @@ npm start
 或者分别启动：
 
 ```bash
-# 启动前端开发服务器 (端口 3000)
+# 启动前端开发服务器 (端口 6100)
 npm run dev
 
-# 启动后端游戏服务器 (端口 3001)
+# 启动后端游戏服务器 (端口 6101)
 npm run server
 ```
 
@@ -109,7 +110,8 @@ red-alert-spring-festival/
 ├── server/                # 后端服务器
 │   └── index.js          # Socket.io 服务器
 ├── scripts/              # 工具脚本
-│   └── generate-assets.js # 资源生成脚本
+│   ├── generate-assets.js     # AI 资源生成脚本
+│   └── generate-spritesheet.js # 雪碧图合成脚本
 ├── public/               # 静态资源
 │   └── assets/          # 游戏资源
 ├── vite.config.ts       # Vite 配置
@@ -119,18 +121,86 @@ red-alert-spring-festival/
 
 ## 🎨 资源生成 (Asset Generation)
 
-运行资源生成脚本：
+项目包含完整的资源生成工具链，支持 AI 图片生成和雪碧图合成。
 
-```bash
-npm run generate-assets
-```
+### 资源类别
 
-该脚本会生成资源描述和提示，用于 AI 图片生成。
+| 类别 | 说明 | 示例 |
+|------|------|------|
+| **buildings** | 建筑资源 | 基地、塔楼、兵营、工厂 |
+| **units** | 单位资源 | 采集者、鞭炮兵、年兽、舞龙人 |
+| **resources** | 资源图标 | 金币、烟花、红包 |
+| **effects** | 特效动画 | 爆炸、烟雾 |
+| **ui** | 界面元素 | 按钮、面板 |
+| **tiles** | 地图瓦片 | 草地、道路 |
 
 ### 使用 Gemini API 生成图片
+
 ```bash
+# 设置 API Key 并生成所有资源
 npm run generate-assets YOUR_GEMINI_API_KEY
+
+# 或使用环境变量
+export GEMINI_API_KEY=your_key_here
+npm run generate-assets
+
+# 只生成指定资源
+node scripts/generate-assets.js YOUR_API_KEY --asset=base
+
+# 查看所有可用资源
+node scripts/generate-assets.js --list
+
+# 模拟运行（不调用 API）
+node scripts/generate-assets.js --dry-run
 ```
+
+**获取 API Key**: https://makersuite.google.com/app/apikey
+
+### 雪碧图合成
+
+对于动画资源（单位、特效），需要将多帧图片合成为雪碧图：
+
+```bash
+# 安装 spritesmith（首次使用）
+npm install --save-dev spritesmith
+
+# 生成所有雪碧图
+npm run generate-spritesheet
+
+# 只处理指定资源
+node scripts/generate-spritesheet.js --asset=nian_beast
+```
+
+### 生成的文件
+
+运行脚本后会生成：
+
+```
+public/assets/
+├── manifest.json           # 资源总清单
+├── spritesheets.json       # 雪碧图清单
+├── buildings/              # 建筑资源
+│   ├── base.png
+│   ├── tower.png
+│   └── ...
+├── units/                  # 单位资源
+│   ├── collector.png
+│   ├── collector_spritesheet.png
+│   ├── collector_spritesheet.json
+│   └── ...
+├── effects/                # 特效资源
+└── ui/                     # UI 资源
+```
+
+### 手动添加资源
+
+如需手动添加资源：
+
+1. 使用透明背景 PNG 格式
+2. 遵循像素艺术风格
+3. 使用春节主题配色（红、金、绿）
+4. 放置到 `public/assets/{category}/` 目录
+5. 更新 `manifest.json`
 
 ## 🔧 开发计划 (Development Roadmap)
 

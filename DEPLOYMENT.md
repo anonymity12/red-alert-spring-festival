@@ -28,7 +28,7 @@ server {
 
     # Socket.io 代理
     location /socket.io {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:6101;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -73,7 +73,7 @@ RUN npm ci --only=production
 COPY --from=build /app/dist ./dist
 COPY server ./server
 
-EXPOSE 3001
+EXPOSE 6101
 
 CMD ["node", "server/index.js"]
 ```
@@ -87,7 +87,7 @@ services:
   app:
     build: .
     ports:
-      - "3001:3001"
+      - "6101:6101"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
@@ -199,7 +199,7 @@ railway up
 
 ```env
 # 服务器端口
-PORT=3001
+PORT=6101
 
 # CORS 允许的源
 ALLOWED_ORIGINS=https://your-domain.com
@@ -364,9 +364,9 @@ io.adapter(redisAdapter(pubClient, subClient));
 ```nginx
 upstream socketio_backend {
     ip_hash;
-    server localhost:3001;
-    server localhost:3002;
-    server localhost:3003;
+    server localhost:6101;
+    server localhost:6102;
+    server localhost:6103;
 }
 
 server {

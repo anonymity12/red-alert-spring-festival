@@ -29,8 +29,8 @@ npm start  # 同时启动前端和后端
 
 或分别启动：
 ```bash
-npm run dev     # 前端开发服务器 (端口 3000)
-npm run server  # 后端游戏服务器 (端口 3001)
+npm run dev     # 前端开发服务器 (端口 6100)
+npm run server  # 后端游戏服务器 (端口 6101)
 ```
 
 ## 项目架构
@@ -144,7 +144,7 @@ private createEntityMesh(entity: Entity): THREE.Mesh {
 
 ### 手动测试
 1. 启动开发服务器
-2. 在浏览器中打开 http://localhost:3000
+2. 在浏览器中打开 http://localhost:6100
 3. 测试各项功能：
    - 建造建筑
    - 生产单位
@@ -225,7 +225,7 @@ npm run generate-assets
 A: 检查灯光设置和相机位置。确保实体在相机视野内。
 
 ### Q: Socket.io 连接失败
-A: 确保后端服务器在 3001 端口运行。检查 CORS 设置。
+A: 确保后端服务器在 6101 端口运行。检查 CORS 设置。
 
 ### Q: 性能问题
 A: 减少实体数量，优化网格复杂度，使用实例化渲染。
