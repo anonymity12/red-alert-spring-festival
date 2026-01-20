@@ -1,18 +1,18 @@
 // Core game types and enums
 
 export enum EntityType {
-  BASE = 'base',
-  COLLECTOR = 'collector',
-  TOWER = 'tower',
-  BARRACKS = 'barracks',
-  FIRECRACKER_SOLDIER = 'firecracker_soldier',
-  NIAN_BEAST = 'nian_beast',
-  RESOURCE = 'resource'
+  BASE = "base",
+  COLLECTOR = "collector",
+  TOWER = "tower",
+  BARRACKS = "barracks",
+  FIRECRACKER_SOLDIER = "firecracker_soldier",
+  NIAN_BEAST = "nian_beast",
+  RESOURCE = "resource",
 }
 
 export enum PlayerSide {
-  PLAYER1 = 'player1',
-  PLAYER2 = 'player2'
+  PLAYER1 = "player1",
+  PLAYER2 = "player2",
 }
 
 export interface Position {
@@ -40,7 +40,9 @@ export interface Unit extends Entity {
   speed: number;
   attack: number;
   attackRange: number;
-  target?: string; // target entity id
+  target?: string; // target entity id for attack
+  targetPosition?: Position; // target position for movement
+  collectTarget?: string; // target resource id for collection
   path?: GridPosition[];
 }
 
@@ -61,12 +63,12 @@ export interface GameState {
   };
   selectedEntities: string[];
   currentPlayer: PlayerSide;
-  gameStatus: 'waiting' | 'playing' | 'ended';
+  gameStatus: "waiting" | "playing" | "ended";
   winner?: PlayerSide;
 }
 
 export interface GameAction {
-  type: 'move' | 'attack' | 'build' | 'collect' | 'produce';
+  type: "move" | "attack" | "build" | "collect" | "produce";
   entityId?: string;
   targetPosition?: GridPosition;
   targetEntityId?: string;

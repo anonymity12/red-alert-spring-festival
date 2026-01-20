@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { GameEngine } from "../game/GameEngine";
 import { GameRenderer } from "../game/GameRenderer";
 import { GameState, PlayerSide, EntityType } from "../game/types";
@@ -9,8 +9,16 @@ const Game: React.FC = () => {
   const engineRef = useRef<GameEngine | null>(null);
   const rendererRef = useRef<GameRenderer | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
+  const [message, setMessage] = useState<string>("");
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+
+  // Show temporary message
+  const showMessage = useCallback((msg: string) => {
+    setMessage(msg);
+    setTimeout(() => setMessage(""), 2000);
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -56,26 +64,145 @@ const Game: React.FC = () => {
 
     animationFrameRef.current = requestAnimationFrame(animate);
 
-    // Handle clicks
+    // Handle left click - select units
     const handleClick = (event: MouseEvent) => {
+      event.preventDefault();
+
       const entityId = renderer.getEntityAtPosition(
         event.clientX,
         event.clientY,
-        canvasRef.current!,
+        container,
       );
 
       if (entityId) {
         const entity = engine.getState().entities.get(entityId);
-        if (entity && entity.owner === PlayerSide.PLAYER1) {
-          engine.deselectAll();
-          engine.selectEntity(entityId);
+        if (entity) {
+          // Can only select own units
+          if (entity.owner === PlayerSide.PLAYER1) {
+            engine.deselectAll();
+            engine.selectEntity(entityId);
+            setSelectedInfo(`已选择: ${getEntityName(entity.type)}`);
+          } else if (entity.owner === PlayerSide.PLAYER2) {
+            // Clicked on enemy - if we have units selected, attack!
+            const selected = engine.getState().selectedEntities;
+            if (selected.length > 0) {
+              selected.forEach((unitId) => {
+                engine.processAction({
+                  type: "attack",
+                  entityId: unitId,
+                  targetEntityId: entityId,
+                  player: PlayerSide.PLAYER1,
+                });
+              });
+              showMessage("⚔️ 攻击目标!");
+            }
+          } else {
+            // Clicked on resource - if we have collectors selected, collect!
+            const selected = engine.getState().selectedEntities;
+            if (selected.length > 0) {
+              const hasCollector = selected.some((id) => {
+                const e = engine.getState().entities.get(id);
+                return e?.type === EntityType.COLLECTOR;
+              });
+              if (hasCollector) {
+                selected.forEach((unitId) => {
+                  const unit = engine.getState().entities.get(unitId);
+                  if (unit?.type === EntityType.COLLECTOR) {
+                    engine.processAction({
+                      type: "collect",
+                      entityId: unitId,
+                      targetEntityId: entityId,
+                      player: PlayerSide.PLAYER1,
+                    });
+                  }
+                });
+                showMessage("📦 采集资源!");
+              }
+            }
+          }
         }
       } else {
         engine.deselectAll();
+        setSelectedInfo(null);
       }
     };
 
-    canvasRef.current.addEventListener("click", handleClick);
+    // Handle right click - move units or attack
+    const handleRightClick = (event: MouseEvent) => {
+      event.preventDefault();
+
+      const selected = engine.getState().selectedEntities;
+      if (selected.length === 0) return;
+
+      // Check if right-clicked on an entity
+      const entityId = renderer.getEntityAtPosition(
+        event.clientX,
+        event.clientY,
+        container,
+      );
+
+      if (entityId) {
+        const targetEntity = engine.getState().entities.get(entityId);
+        if (targetEntity) {
+          if (targetEntity.owner === PlayerSide.PLAYER2) {
+            // Attack enemy
+            selected.forEach((unitId) => {
+              engine.processAction({
+                type: "attack",
+                entityId: unitId,
+                targetEntityId: entityId,
+                player: PlayerSide.PLAYER1,
+              });
+            });
+            showMessage("⚔️ 攻击!");
+          } else if (targetEntity.type === EntityType.RESOURCE) {
+            // Collect resource
+            selected.forEach((unitId) => {
+              const unit = engine.getState().entities.get(unitId);
+              if (unit?.type === EntityType.COLLECTOR) {
+                engine.processAction({
+                  type: "collect",
+                  entityId: unitId,
+                  targetEntityId: entityId,
+                  player: PlayerSide.PLAYER1,
+                });
+              }
+            });
+            showMessage("📦 前往采集!");
+          }
+          return;
+        }
+      }
+
+      // Move to clicked position
+      const worldPos = renderer.screenToWorld(
+        event.clientX,
+        event.clientY,
+        container,
+      );
+      if (worldPos) {
+        selected.forEach((unitId) => {
+          engine.processAction({
+            type: "move",
+            entityId: unitId,
+            targetPosition: worldPos,
+            player: PlayerSide.PLAYER1,
+          });
+        });
+        showMessage("🚶 移动中...");
+      }
+    };
+
+    // Prevent context menu
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+
+    container.addEventListener("click", handleClick);
+    container.addEventListener("contextmenu", handleContextMenu);
+    container.addEventListener("mousedown", (e) => {
+      if (e.button === 2) handleRightClick(e);
+    });
 
     // Cleanup
     return () => {
@@ -89,6 +216,7 @@ const Game: React.FC = () => {
       }
       if (container) {
         container.removeEventListener("click", handleClick);
+        container.removeEventListener("contextmenu", handleContextMenu);
         // Clear canvas elements
         while (container.firstChild) {
           container.removeChild(container.firstChild);
@@ -96,47 +224,96 @@ const Game: React.FC = () => {
       }
       engineRef.current = null;
     };
-  }, []);
+  }, [showMessage]);
+
+  const getEntityName = (type: EntityType): string => {
+    const names: Record<EntityType, string> = {
+      [EntityType.BASE]: "基地",
+      [EntityType.TOWER]: "防御塔",
+      [EntityType.BARRACKS]: "兵营",
+      [EntityType.COLLECTOR]: "采集者",
+      [EntityType.FIRECRACKER_SOLDIER]: "鞭炮兵",
+      [EntityType.NIAN_BEAST]: "年兽",
+      [EntityType.RESOURCE]: "年货资源",
+    };
+    return names[type] || type;
+  };
 
   const handleBuildTower = () => {
     if (engineRef.current) {
-      engineRef.current.processAction({
+      // Find a valid position near the base
+      const success = engineRef.current.processAction({
         type: "build",
         buildingType: EntityType.TOWER,
         targetPosition: { row: 5, col: 5 },
         player: PlayerSide.PLAYER1,
       });
+      if (success) {
+        showMessage("🏯 建造防御塔!");
+      } else {
+        showMessage("❌ 资源不足或位置无效");
+      }
     }
   };
 
   const handleBuildBarracks = () => {
     if (engineRef.current) {
-      engineRef.current.processAction({
+      const success = engineRef.current.processAction({
         type: "build",
         buildingType: EntityType.BARRACKS,
         targetPosition: { row: 4, col: 4 },
         player: PlayerSide.PLAYER1,
       });
+      if (success) {
+        showMessage("🏠 建造兵营!");
+      } else {
+        showMessage("❌ 资源不足或位置无效");
+      }
     }
   };
 
   const handleProduceSoldier = () => {
     if (engineRef.current) {
-      engineRef.current.processAction({
+      const success = engineRef.current.processAction({
         type: "produce",
         unitType: EntityType.FIRECRACKER_SOLDIER,
         player: PlayerSide.PLAYER1,
       });
+      if (success) {
+        showMessage("🧨 训练鞭炮兵!");
+      } else {
+        showMessage("❌ 需要先建造兵营或资源不足");
+      }
     }
   };
 
   const handleProduceBeast = () => {
     if (engineRef.current) {
-      engineRef.current.processAction({
+      const success = engineRef.current.processAction({
         type: "produce",
         unitType: EntityType.NIAN_BEAST,
         player: PlayerSide.PLAYER1,
       });
+      if (success) {
+        showMessage("🐉 召唤年兽!");
+      } else {
+        showMessage("❌ 需要先建造兵营或资源不足");
+      }
+    }
+  };
+
+  const handleProduceCollector = () => {
+    if (engineRef.current) {
+      const success = engineRef.current.processAction({
+        type: "produce",
+        unitType: EntityType.COLLECTOR,
+        player: PlayerSide.PLAYER1,
+      });
+      if (success) {
+        showMessage("📦 训练采集者!");
+      } else {
+        showMessage("❌ 资源不足");
+      }
     }
   };
 
@@ -147,69 +324,81 @@ const Game: React.FC = () => {
         {gameState && (
           <div className="game-info">
             <div className="resources">
-              <span>
-                🧧 Player 1 Resources: {gameState.resources[PlayerSide.PLAYER1]}
+              <span className="resource-display player1">
+                🧧 玩家1资源: {gameState.resources[PlayerSide.PLAYER1]}
               </span>
-              <span>
-                🧧 Player 2 Resources: {gameState.resources[PlayerSide.PLAYER2]}
+              <span className="resource-display player2">
+                🧧 玩家2资源: {gameState.resources[PlayerSide.PLAYER2]}
               </span>
             </div>
             {gameState.gameStatus === "ended" && (
               <div className="game-over">
-                Game Over! Winner:{" "}
+                🎉 游戏结束! 胜利者:{" "}
                 {gameState.winner === PlayerSide.PLAYER1
-                  ? "Player 1"
-                  : "Player 2"}
+                  ? "玩家1 (红方)"
+                  : "玩家2 (蓝方)"}
               </div>
             )}
           </div>
         )}
       </div>
 
+      {/* Game message overlay */}
+      {message && <div className="game-message">{message}</div>}
+
       <div className="game-content">
         <div className="game-canvas" ref={canvasRef} />
 
         <div className="game-controls">
-          <h3>Controls</h3>
+          <h3>控制面板</h3>
+
+          {selectedInfo && <div className="selected-info">{selectedInfo}</div>}
+
           <div className="control-section">
-            <h4>Buildings</h4>
-            <button onClick={handleBuildTower}>🏯 Build Tower (150)</button>
-            <button onClick={handleBuildBarracks}>
-              🏠 Build Barracks (200)
-            </button>
+            <h4>建筑 Buildings</h4>
+            <button onClick={handleBuildTower}>🏯 建造防御塔 (150)</button>
+            <button onClick={handleBuildBarracks}>🏠 建造兵营 (200)</button>
           </div>
 
           <div className="control-section">
-            <h4>Units</h4>
-            <button onClick={handleProduceSoldier}>
-              🧨 Firecracker Soldier (75)
-            </button>
-            <button onClick={handleProduceBeast}>🐉 Nian Beast (120)</button>
+            <h4>单位 Units</h4>
+            <button onClick={handleProduceCollector}>📦 训练采集者 (50)</button>
+            <button onClick={handleProduceSoldier}>🧨 训练鞭炮兵 (75)</button>
+            <button onClick={handleProduceBeast}>🐉 召唤年兽 (120)</button>
           </div>
 
           <div className="control-section">
-            <h4>Legend</h4>
+            <h4>图例 Legend</h4>
             <div className="legend">
               <div className="legend-item">
                 <span className="color-box red"></span>
-                <span>Player 1 (Red)</span>
+                <span>玩家1 (红方)</span>
               </div>
               <div className="legend-item">
                 <span className="color-box blue"></span>
-                <span>Player 2 (Blue)</span>
+                <span>玩家2 (蓝方)</span>
               </div>
               <div className="legend-item">
                 <span className="color-box gold"></span>
-                <span>Resources (年货)</span>
+                <span>年货资源</span>
               </div>
             </div>
           </div>
 
           <div className="control-section">
-            <h4>Info</h4>
-            <p>Click on your units to select them</p>
-            <p>Build structures and produce units</p>
-            <p>Destroy the enemy base to win!</p>
+            <h4>操作说明</h4>
+            <p>
+              🖱️ <strong>左键点击</strong>: 选择己方单位
+            </p>
+            <p>
+              🖱️ <strong>右键点击</strong>: 移动/攻击/采集
+            </p>
+            <p>
+              🏗️ <strong>建造</strong>: 点击建筑按钮
+            </p>
+            <p>
+              ⚔️ <strong>目标</strong>: 摧毁敌方基地!
+            </p>
           </div>
         </div>
       </div>

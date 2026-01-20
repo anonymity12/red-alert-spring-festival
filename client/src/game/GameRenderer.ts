@@ -466,6 +466,47 @@ export class GameRenderer {
     return null;
   }
 
+  /**
+   * Convert screen coordinates to world grid position
+   */
+  screenToWorld(
+    x: number,
+    y: number,
+    container: HTMLElement,
+  ): { row: number; col: number } | null {
+    const rect = container.getBoundingClientRect();
+    this.mouse.x = ((x - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((y - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    // Create a plane at y=0 to intersect with
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const intersectPoint = new THREE.Vector3();
+
+    if (this.raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
+      // Convert world position to grid position
+      // Reverse the gridToWorld calculation
+      const col = Math.round(
+        (intersectPoint.x / (TILE_SIZE / 2) +
+          intersectPoint.z / (TILE_SIZE / 4)) /
+          2,
+      );
+      const row = Math.round(
+        (intersectPoint.z / (TILE_SIZE / 4) -
+          intersectPoint.x / (TILE_SIZE / 2)) /
+          2,
+      );
+
+      // Validate grid bounds
+      if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+        return { row, col };
+      }
+    }
+
+    return null;
+  }
+
   render() {
     this.renderer.render(this.scene, this.camera);
   }
