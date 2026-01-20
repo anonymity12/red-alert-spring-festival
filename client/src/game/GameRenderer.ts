@@ -52,6 +52,12 @@ export class GameRenderer {
     // Calculate the game world size
     const worldSize = GRID_SIZE * TILE_SIZE; // 20 * 64 = 1280
 
+    // Calculate the isometric grid center
+    // Grid (0,0) -> world (0, 0), Grid (19,19) -> world (0, 608)
+    // Grid center is approximately at z = 304
+    const gridCenterX = 0;
+    const gridCenterZ = (GRID_SIZE - 1) * (TILE_SIZE / 4); // 19 * 16 = 304
+
     // Create orthographic camera for top-down view
     const aspect = container.clientWidth / container.clientHeight;
     const viewSize = worldSize * 0.8; // View slightly smaller than world for some margin
@@ -65,9 +71,14 @@ export class GameRenderer {
       10000,
     );
 
-    // Position camera for isometric view (looking at scene from an angle)
-    this.camera.position.set(500, 700, 500);
-    this.camera.lookAt(0, 0, 0);
+    // Position camera for classic isometric RTS view
+    // Camera is positioned behind and above the map center
+    // Looking toward the front (negative Z direction) so grid (0,0) appears at screen top
+    // The diamond's top point (row=0, col=0) is at world z=0
+    // The diamond's bottom point (row=19, col=19) is at world z=608
+    // Camera at higher Z looks toward lower Z, putting the top point at screen top
+    this.camera.position.set(gridCenterX, 900, gridCenterZ + 500);
+    this.camera.lookAt(gridCenterX, 0, gridCenterZ);
 
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -120,11 +131,44 @@ export class GameRenderer {
   }
 
   private createGround() {
-    const gridWidth = GRID_SIZE * TILE_SIZE;
-    const gridHeight = GRID_SIZE * TILE_SIZE;
+    // Create diamond-shaped ground plane that matches isometric grid
+    // Get the four corners of the isometric grid
+    const corners = [
+      this.gridToWorldPos(0, 0), // Top
+      this.gridToWorldPos(0, GRID_SIZE), // Right
+      this.gridToWorldPos(GRID_SIZE, GRID_SIZE), // Bottom
+      this.gridToWorldPos(GRID_SIZE, 0), // Left
+    ];
 
-    // Create textured ground plane
-    const groundGeometry = new THREE.PlaneGeometry(gridWidth, gridHeight);
+    // Create diamond geometry using vertices
+    const groundGeometry = new THREE.BufferGeometry();
+    const vertices = new Float32Array([
+      // Triangle 1: Top -> Right -> Bottom
+      corners[0].x,
+      0,
+      corners[0].z,
+      corners[1].x,
+      0,
+      corners[1].z,
+      corners[2].x,
+      0,
+      corners[2].z,
+      // Triangle 2: Top -> Bottom -> Left
+      corners[0].x,
+      0,
+      corners[0].z,
+      corners[2].x,
+      0,
+      corners[2].z,
+      corners[3].x,
+      0,
+      corners[3].z,
+    ]);
+    groundGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(vertices, 3),
+    );
+    groundGeometry.computeVertexNormals();
 
     // Create a grass-like material
     const groundMaterial = new THREE.MeshLambertMaterial({
@@ -133,70 +177,88 @@ export class GameRenderer {
     });
 
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-    ground.position.y = 0;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // Add grid lines for visual reference
-    const gridHelper = new THREE.GridHelper(
-      gridWidth,
-      GRID_SIZE,
-      0x2d5a27, // Dark green for main lines
-      0x3d7a37, // Lighter green for subdivisions
-    );
-    gridHelper.position.y = 1; // Slightly above ground to prevent z-fighting
-    this.scene.add(gridHelper);
+    // Add isometric grid lines for visual reference
+    this.createIsometricGrid();
 
     // Add decorative border
-    this.createBorder(gridWidth, gridHeight);
+    this.createIsometricBorder();
   }
 
-  private createBorder(width: number, height: number) {
+  private gridToWorldPos(row: number, col: number): { x: number; z: number } {
+    const x = (col - row) * (TILE_SIZE / 2);
+    const z = (col + row) * (TILE_SIZE / 4);
+    return { x, z };
+  }
+
+  private createIsometricGrid() {
+    const gridMaterial = new THREE.LineBasicMaterial({
+      color: 0x3d7a37,
+      transparent: true,
+      opacity: 0.5,
+    });
+
+    const points: THREE.Vector3[] = [];
+
+    // Create grid lines along the row direction (varying row, fixed col)
+    for (let col = 0; col <= GRID_SIZE; col++) {
+      const start = this.gridToWorldPos(0, col);
+      const end = this.gridToWorldPos(GRID_SIZE, col);
+      points.push(new THREE.Vector3(start.x, 1, start.z));
+      points.push(new THREE.Vector3(end.x, 1, end.z));
+    }
+
+    // Create grid lines along the col direction (fixed row, varying col)
+    for (let row = 0; row <= GRID_SIZE; row++) {
+      const start = this.gridToWorldPos(row, 0);
+      const end = this.gridToWorldPos(row, GRID_SIZE);
+      points.push(new THREE.Vector3(start.x, 1, start.z));
+      points.push(new THREE.Vector3(end.x, 1, end.z));
+    }
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const gridLines = new THREE.LineSegments(geometry, gridMaterial);
+    this.scene.add(gridLines);
+  }
+
+  private createIsometricBorder() {
     const borderMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown
     const borderWidth = 20;
     const borderHeight = 10;
 
-    const positions = [
-      {
-        x: 0,
-        z: -height / 2 - borderWidth / 2,
-        rotY: 0,
-        length: width + borderWidth * 2,
-      },
-      {
-        x: 0,
-        z: height / 2 + borderWidth / 2,
-        rotY: 0,
-        length: width + borderWidth * 2,
-      },
-      {
-        x: -width / 2 - borderWidth / 2,
-        z: 0,
-        rotY: Math.PI / 2,
-        length: height,
-      },
-      {
-        x: width / 2 + borderWidth / 2,
-        z: 0,
-        rotY: Math.PI / 2,
-        length: height,
-      },
+    // Get the four corners of the isometric grid
+    const corners = [
+      this.gridToWorldPos(0, 0), // Top
+      this.gridToWorldPos(0, GRID_SIZE), // Right
+      this.gridToWorldPos(GRID_SIZE, GRID_SIZE), // Bottom
+      this.gridToWorldPos(GRID_SIZE, 0), // Left
     ];
 
-    positions.forEach((pos) => {
-      const geometry = new THREE.BoxGeometry(
-        pos.length,
-        borderHeight,
-        borderWidth,
-      );
+    // Create border segments between each pair of corners
+    for (let i = 0; i < 4; i++) {
+      const start = corners[i];
+      const end = corners[(i + 1) % 4];
+
+      const dx = end.x - start.x;
+      const dz = end.z - start.z;
+      const length = Math.sqrt(dx * dx + dz * dz);
+      const angle = Math.atan2(dx, dz);
+
+      const geometry = new THREE.BoxGeometry(borderWidth, borderHeight, length);
       const border = new THREE.Mesh(geometry, borderMaterial);
-      border.position.set(pos.x, borderHeight / 2, pos.z);
-      border.rotation.y = pos.rotY;
+
+      border.position.set(
+        (start.x + end.x) / 2,
+        borderHeight / 2,
+        (start.z + end.z) / 2,
+      );
+      border.rotation.y = angle;
       border.castShadow = true;
       border.receiveShadow = true;
       this.scene.add(border);
-    });
+    }
   }
 
   private preloadTextures() {
@@ -257,7 +319,7 @@ export class GameRenderer {
       group.add(sprite);
     } else {
       // Fallback to 3D geometry
-      console.log("Failed to load texture:", assetPath);
+      console.log("fallback: Failed to load texture:", assetPath);
       const mesh = this.createFallbackMesh(entity);
       group.add(mesh);
     }
@@ -355,7 +417,7 @@ export class GameRenderer {
     ring.userData.isSelectionRing = true;
     group.add(ring);
   }
-
+  // 这个函数 在 Game.tsx 里会早于 preloadTextures 函数调用,导致素材实际上没有被提前完整加载.请你修复,先加载好一切资源后,再开始游戏循环
   updateEntities(entities: Map<string, Entity>) {
     // Remove meshes for deleted entities
     const currentIds = new Set(entities.keys());
@@ -517,11 +579,19 @@ export class GameRenderer {
     const worldSize = GRID_SIZE * TILE_SIZE;
     const viewSize = worldSize * 0.8;
 
+    // Calculate the isometric grid center
+    const gridCenterX = 0;
+    const gridCenterZ = (GRID_SIZE - 1) * (TILE_SIZE / 4); // 304
+
     this.camera.left = (-viewSize * aspect) / 2;
     this.camera.right = (viewSize * aspect) / 2;
     this.camera.top = viewSize / 2;
     this.camera.bottom = -viewSize / 2;
     this.camera.updateProjectionMatrix();
+
+    // Keep camera positioned behind and above the map center
+    this.camera.position.set(gridCenterX, 900, gridCenterZ + 500);
+    this.camera.lookAt(gridCenterX, 0, gridCenterZ);
 
     this.renderer.setSize(
       this.container.clientWidth,
