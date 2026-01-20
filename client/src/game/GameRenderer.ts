@@ -42,6 +42,8 @@ export class GameRenderer {
     this.mouse = new THREE.Vector2();
     this.textureLoader = new THREE.TextureLoader();
     this.textureCache = new Map();
+    // Preload textures
+    this.preloadTextures();
 
     // Create scene with sky blue background
     this.scene = new THREE.Scene();
@@ -88,9 +90,6 @@ export class GameRenderer {
 
     // Create ground
     this.createGround();
-
-    // Preload textures
-    this.preloadTextures();
 
     // Handle window resize
     window.addEventListener("resize", this.handleResize);
@@ -207,6 +206,7 @@ export class GameRenderer {
   }
 
   private loadTexture(path: string): THREE.Texture | null {
+    console.log("Loading texture:", path);
     if (this.textureCache.has(path)) {
       return this.textureCache.get(path)!;
     }
@@ -257,6 +257,7 @@ export class GameRenderer {
       group.add(sprite);
     } else {
       // Fallback to 3D geometry
+      console.log("Failed to load texture:", assetPath);
       const mesh = this.createFallbackMesh(entity);
       group.add(mesh);
     }

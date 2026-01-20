@@ -343,9 +343,6 @@ const Game: React.FC = () => {
         )}
       </div>
 
-      {/* Game message overlay */}
-      {message && <div className="game-message">{message}</div>}
-
       <div className="game-content">
         <div className="game-canvas" ref={canvasRef} />
 
@@ -402,6 +399,8 @@ const Game: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Game message overlay */}
+      <div className="game-message">新闻: {message}</div>
     </div>
   );
 };
