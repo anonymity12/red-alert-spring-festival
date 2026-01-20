@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { GameEngine } from '../game/GameEngine';
-import { GameRenderer } from '../game/GameRenderer';
-import { GameState, PlayerSide, EntityType } from '../game/types';
-import './Game.css';
+import React, { useEffect, useRef, useState } from "react";
+import { GameEngine } from "../game/GameEngine";
+import { GameRenderer } from "../game/GameRenderer";
+import { GameState, PlayerSide, EntityType } from "../game/types";
+import "./Game.css";
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -15,9 +15,16 @@ const Game: React.FC = () => {
   useEffect(() => {
     if (!canvasRef.current) return;
 
+    const container = canvasRef.current;
+
+    // Clear any existing canvas elements (for StrictMode double-render)
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+
     // Initialize game engine and renderer
     const engine = new GameEngine();
-    const renderer = new GameRenderer(canvasRef.current);
+    const renderer = new GameRenderer(container);
 
     engineRef.current = engine;
     rendererRef.current = renderer;
@@ -32,7 +39,9 @@ const Game: React.FC = () => {
 
     // Game loop
     const animate = (time: number) => {
-      const deltaTime = lastTimeRef.current ? (time - lastTimeRef.current) / 1000 : 0;
+      const deltaTime = lastTimeRef.current
+        ? (time - lastTimeRef.current) / 1000
+        : 0;
       lastTimeRef.current = time;
 
       // Update game logic
@@ -52,7 +61,7 @@ const Game: React.FC = () => {
       const entityId = renderer.getEntityAtPosition(
         event.clientX,
         event.clientY,
-        canvasRef.current!
+        canvasRef.current!,
       );
 
       if (entityId) {
@@ -66,29 +75,36 @@ const Game: React.FC = () => {
       }
     };
 
-    canvasRef.current.addEventListener('click', handleClick);
+    canvasRef.current.addEventListener("click", handleClick);
 
     // Cleanup
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = 0;
       }
       if (rendererRef.current) {
         rendererRef.current.dispose();
+        rendererRef.current = null;
       }
-      if (canvasRef.current) {
-        canvasRef.current.removeEventListener('click', handleClick);
+      if (container) {
+        container.removeEventListener("click", handleClick);
+        // Clear canvas elements
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
       }
+      engineRef.current = null;
     };
   }, []);
 
   const handleBuildTower = () => {
     if (engineRef.current) {
       engineRef.current.processAction({
-        type: 'build',
+        type: "build",
         buildingType: EntityType.TOWER,
         targetPosition: { row: 5, col: 5 },
-        player: PlayerSide.PLAYER1
+        player: PlayerSide.PLAYER1,
       });
     }
   };
@@ -96,10 +112,10 @@ const Game: React.FC = () => {
   const handleBuildBarracks = () => {
     if (engineRef.current) {
       engineRef.current.processAction({
-        type: 'build',
+        type: "build",
         buildingType: EntityType.BARRACKS,
         targetPosition: { row: 4, col: 4 },
-        player: PlayerSide.PLAYER1
+        player: PlayerSide.PLAYER1,
       });
     }
   };
@@ -107,9 +123,9 @@ const Game: React.FC = () => {
   const handleProduceSoldier = () => {
     if (engineRef.current) {
       engineRef.current.processAction({
-        type: 'produce',
+        type: "produce",
         unitType: EntityType.FIRECRACKER_SOLDIER,
-        player: PlayerSide.PLAYER1
+        player: PlayerSide.PLAYER1,
       });
     }
   };
@@ -117,9 +133,9 @@ const Game: React.FC = () => {
   const handleProduceBeast = () => {
     if (engineRef.current) {
       engineRef.current.processAction({
-        type: 'produce',
+        type: "produce",
         unitType: EntityType.NIAN_BEAST,
-        player: PlayerSide.PLAYER1
+        player: PlayerSide.PLAYER1,
       });
     }
   };
@@ -131,12 +147,19 @@ const Game: React.FC = () => {
         {gameState && (
           <div className="game-info">
             <div className="resources">
-              <span>🧧 Player 1 Resources: {gameState.resources[PlayerSide.PLAYER1]}</span>
-              <span>🧧 Player 2 Resources: {gameState.resources[PlayerSide.PLAYER2]}</span>
+              <span>
+                🧧 Player 1 Resources: {gameState.resources[PlayerSide.PLAYER1]}
+              </span>
+              <span>
+                🧧 Player 2 Resources: {gameState.resources[PlayerSide.PLAYER2]}
+              </span>
             </div>
-            {gameState.gameStatus === 'ended' && (
+            {gameState.gameStatus === "ended" && (
               <div className="game-over">
-                Game Over! Winner: {gameState.winner === PlayerSide.PLAYER1 ? 'Player 1' : 'Player 2'}
+                Game Over! Winner:{" "}
+                {gameState.winner === PlayerSide.PLAYER1
+                  ? "Player 1"
+                  : "Player 2"}
               </div>
             )}
           </div>
@@ -150,9 +173,7 @@ const Game: React.FC = () => {
           <h3>Controls</h3>
           <div className="control-section">
             <h4>Buildings</h4>
-            <button onClick={handleBuildTower}>
-              🏯 Build Tower (150)
-            </button>
+            <button onClick={handleBuildTower}>🏯 Build Tower (150)</button>
             <button onClick={handleBuildBarracks}>
               🏠 Build Barracks (200)
             </button>
@@ -163,9 +184,7 @@ const Game: React.FC = () => {
             <button onClick={handleProduceSoldier}>
               🧨 Firecracker Soldier (75)
             </button>
-            <button onClick={handleProduceBeast}>
-              🐉 Nian Beast (120)
-            </button>
+            <button onClick={handleProduceBeast}>🐉 Nian Beast (120)</button>
           </div>
 
           <div className="control-section">
