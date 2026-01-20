@@ -1,4 +1,4 @@
-import { Entity, EntityType, PlayerSide, Position, GridPosition } from './types';
+import { EntityType, Position, GridPosition } from './types';
 
 // Game constants
 export const GRID_SIZE = 20; // 20x20 grid

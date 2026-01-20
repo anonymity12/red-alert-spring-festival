@@ -9,7 +9,7 @@ const Game: React.FC = () => {
   const engineRef = useRef<GameEngine | null>(null);
   const rendererRef = useRef<GameRenderer | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ const Game: React.FC = () => {
 
     // Subscribe to game state updates
     engine.onUpdate((state) => {
-      setGameState({ ...state });
+      setGameState(structuredClone(state));
     });
 
     // Set initial state

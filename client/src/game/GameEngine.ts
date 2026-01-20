@@ -6,15 +6,13 @@ import {
   Building,
   Resource,
   EntityType,
-  PlayerSide,
-  GridPosition
+  PlayerSide
 } from './types';
 import {
   ENTITY_STATS,
   generateEntityId,
   gridToWorld,
   isValidGridPosition,
-  gridDistance,
   GRID_SIZE
 } from './constants';
 
@@ -166,13 +164,15 @@ export class GameEngine {
   private handleBuild(action: GameAction): boolean {
     if (!action.buildingType || !action.targetPosition) return false;
 
-    const cost = ENTITY_STATS[action.buildingType].cost;
+    const stats = ENTITY_STATS[action.buildingType];
+    if (!('cost' in stats)) return false;
+
+    const cost = stats.cost;
     if (this.state.resources[action.player] < cost) return false;
 
     if (!isValidGridPosition(action.targetPosition)) return false;
 
     const buildingId = generateEntityId();
-    const stats = ENTITY_STATS[action.buildingType];
 
     this.state.entities.set(buildingId, {
       id: buildingId,
@@ -181,7 +181,7 @@ export class GameEngine {
       health: stats.maxHealth,
       maxHealth: stats.maxHealth,
       owner: action.player,
-      buildTime: stats.buildTime,
+      buildTime: 'buildTime' in stats ? stats.buildTime : 0,
       isBuilding: true
     } as Building);
 
@@ -193,7 +193,10 @@ export class GameEngine {
   private handleProduce(action: GameAction): boolean {
     if (!action.unitType) return false;
 
-    const cost = ENTITY_STATS[action.unitType].cost;
+    const stats = ENTITY_STATS[action.unitType];
+    if (!('cost' in stats)) return false;
+
+    const cost = stats.cost;
     if (this.state.resources[action.player] < cost) return false;
 
     // Find a barracks owned by the player
@@ -208,7 +211,6 @@ export class GameEngine {
     if (!barracks) return false;
 
     const unitId = generateEntityId();
-    const stats = ENTITY_STATS[action.unitType];
 
     // Spawn near the barracks
     const spawnPos = { ...barracks.position };
@@ -221,9 +223,9 @@ export class GameEngine {
       health: stats.maxHealth,
       maxHealth: stats.maxHealth,
       owner: action.player,
-      speed: stats.speed,
-      attack: stats.attack,
-      attackRange: stats.attackRange
+      speed: 'speed' in stats ? stats.speed : 0,
+      attack: 'attack' in stats ? stats.attack : 0,
+      attackRange: 'attackRange' in stats ? stats.attackRange : 0
     } as Unit);
 
     this.state.resources[action.player] -= cost;
@@ -261,22 +263,24 @@ export class GameEngine {
   private updateUnits(deltaTime: number) {
     // Update unit movements, attacks, etc.
     for (const entity of this.state.entities.values()) {
-      if ('speed' in entity && entity.target) {
+      if ('speed' in entity && 'target' in entity) {
         const unit = entity as Unit;
-        const target = this.state.entities.get(unit.target);
-        
-        if (target && target.health > 0) {
-          // Simple attack logic
-          if (unit.attack && unit.attackRange) {
-            target.health = Math.max(0, target.health - unit.attack * deltaTime * 0.1);
-            
-            if (target.health <= 0) {
-              this.state.entities.delete(target.id);
-              unit.target = undefined;
+        if (unit.target) {
+          const target = this.state.entities.get(unit.target);
+          
+          if (target && target.health > 0) {
+            // Simple attack logic
+            if (unit.attack && unit.attackRange) {
+              target.health = Math.max(0, target.health - unit.attack * deltaTime * 0.1);
+              
+              if (target.health <= 0) {
+                this.state.entities.delete(target.id);
+                unit.target = undefined;
+              }
             }
+          } else {
+            unit.target = undefined;
           }
-        } else {
-          unit.target = undefined;
         }
       }
     }
