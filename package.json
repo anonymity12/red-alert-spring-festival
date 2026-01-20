@@ -11,6 +11,7 @@
     "server:dev": "nodemon server/index.js",
     "generate-assets": "node scripts/generate-assets.js",
     "generate-spritesheet": "node scripts/generate-spritesheet.js",
+    "compress-png": "node scripts/compress_png.js",
     "start": "concurrently \"npm run dev\" \"npm run server\""
   },
   "keywords": [
