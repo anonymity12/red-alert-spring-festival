@@ -109,26 +109,69 @@ export class GameRenderer {
   }
 
   private setupLights() {
-    // Ambient light for base illumination
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // ============================================
+    // 光照系统 (Lighting System)
+    // ============================================
+    //
+    // 本游戏使用三层光照系统：
+    // 1. 环境光 (Ambient Light) - 基础照明，无方向
+    // 2. 平行光 (Directional Light) - 模拟太阳，45度斜射，产生阴影
+    // 3. 半球光 (Hemisphere Light) - 模拟天空和地面的环境反射
+    //
+    // 光照方向采用 45 度角斜射，符合经典 RTS 游戏风格
+    // ============================================
+
+    // 1. 环境光 - 提供基础照明，确保阴影区域不会全黑
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
 
-    // Main directional light (sun)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(200, 500, 200);
+    // 2. 平行光（太阳光）- 20度斜射
+    // 计算 20 度角的光源位置
+    // 光源从左侧照射，与地面成 20 度角
+    const lightDistance = 800;
+    const lightAngle = (20 * Math.PI) / 180; // 20度转弧度
+    const lightHeight = lightDistance * Math.tan(lightAngle); // 20度角高度
+
+    // 光源位置：从屏幕左侧照向地图中心
+    // X: 负值 = 从左侧照射
+    // Y: 高度（由 20 度角计算）
+    // Z: 0 = 正侧面照射
+    const directionalLight = new THREE.DirectionalLight(0xfffaf0, 0.9); // 暖白色阳光
+    directionalLight.position.set(
+      -lightDistance, // X: 从左侧
+      lightHeight, // Y: 高度 (20度角)
+      0, // Z: 侧面
+    );
+    directionalLight.target.position.set(0, 0, 304); // 指向地图中心
+    this.scene.add(directionalLight.target);
+
+    // 阴影设置
     directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.width = 2048; // 阴影贴图分辨率
     directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 1500;
-    directionalLight.shadow.camera.left = -500;
-    directionalLight.shadow.camera.right = 500;
-    directionalLight.shadow.camera.top = 500;
-    directionalLight.shadow.camera.bottom = -500;
+    directionalLight.shadow.camera.near = 100;
+    directionalLight.shadow.camera.far = 2000;
+
+    // 阴影相机范围（覆盖整个地图）
+    const shadowSize = 800;
+    directionalLight.shadow.camera.left = -shadowSize;
+    directionalLight.shadow.camera.right = shadowSize;
+    directionalLight.shadow.camera.top = shadowSize;
+    directionalLight.shadow.camera.bottom = -shadowSize;
+
+    // 阴影偏移，防止阴影失真 (shadow acne)
+    directionalLight.shadow.bias = -0.001;
+
     this.scene.add(directionalLight);
 
-    // Hemisphere light for natural outdoor lighting
-    const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x3d5c3d, 0.3);
+    // 3. 半球光 - 模拟天空（蓝色）和地面（绿色）的环境反射
+    // 天空颜色：淡蓝色
+    // 地面颜色：草绿色
+    const hemisphereLight = new THREE.HemisphereLight(
+      0x87ceeb, // 天空色 (sky blue)
+      0x3d5c3d, // 地面色 (grass green)
+      0.4,
+    );
     this.scene.add(hemisphereLight);
   }
 
@@ -366,9 +409,6 @@ export class GameRenderer {
       group.add(mesh);
     }
 
-    // Add shadow plane under the entity
-    this.addShadow(group, size.width * 0.8);
-
     // Add selection indicator
     this.addSelectionIndicator(group, size.width);
 
@@ -426,19 +466,6 @@ export class GameRenderer {
     mesh.position.y = (bbox.max.y - bbox.min.y) / 2;
 
     return mesh;
-  }
-
-  private addShadow(group: THREE.Group, size: number) {
-    const shadowGeometry = new THREE.CircleGeometry(size / 2, 16);
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 2;
-    group.add(shadow);
   }
 
   private addSelectionIndicator(group: THREE.Group, size: number) {
