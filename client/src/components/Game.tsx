@@ -11,6 +11,8 @@ const Game: React.FC = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadingProgress, setLoadingProgress] = useState<string>("初始化...");
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
@@ -24,6 +26,7 @@ const Game: React.FC = () => {
     if (!canvasRef.current) return;
 
     const container = canvasRef.current;
+    let isMounted = true;
 
     // Clear any existing canvas elements (for StrictMode double-render)
     while (container.firstChild) {
@@ -62,7 +65,31 @@ const Game: React.FC = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animationFrameRef.current = requestAnimationFrame(animate);
+    // Wait for all assets to load before starting game loop
+    const initGame = async () => {
+      setLoadingProgress("加载纹理资源...");
+
+      try {
+        await renderer.waitForLoad();
+
+        if (!isMounted) return;
+
+        setLoadingProgress("启动游戏...");
+        setIsLoading(false);
+
+        // Start game loop only after assets are loaded
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } catch (error) {
+        console.error("Failed to load assets:", error);
+        if (isMounted) {
+          setLoadingProgress("资源加载失败，使用备用资源...");
+          setIsLoading(false);
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }
+      }
+    };
+
+    initGame();
 
     // Handle left click - select units
     const handleClick = (event: MouseEvent) => {
@@ -206,6 +233,7 @@ const Game: React.FC = () => {
 
     // Cleanup
     return () => {
+      isMounted = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = 0;
@@ -319,6 +347,20 @@ const Game: React.FC = () => {
 
   return (
     <div className="game-container">
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-content">
+            <div className="loading-spinner">🎮</div>
+            <h2>春节攻防战</h2>
+            <p>{loadingProgress}</p>
+            <div className="loading-bar">
+              <div className="loading-bar-fill"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="game-header">
         <h1>春节攻防战 - Spring Festival Battle</h1>
         {gameState && (

@@ -34,6 +34,8 @@ export class GameRenderer {
   private textureLoader: THREE.TextureLoader;
   private textureCache: Map<string, THREE.Texture>;
   private container: HTMLElement;
+  private loadingPromise: Promise<void>;
+  private isLoaded: boolean = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -42,8 +44,8 @@ export class GameRenderer {
     this.mouse = new THREE.Vector2();
     this.textureLoader = new THREE.TextureLoader();
     this.textureCache = new Map();
-    // Preload textures
-    this.preloadTextures();
+    // Preload textures - store the promise for later awaiting
+    this.loadingPromise = this.preloadTextures();
 
     // Create scene with sky blue background
     this.scene = new THREE.Scene();
@@ -261,33 +263,73 @@ export class GameRenderer {
     }
   }
 
-  private preloadTextures() {
-    Object.values(ASSET_PATHS).forEach((path) => {
-      this.loadTexture(path);
+  /**
+   * Preload all textures asynchronously
+   * Returns a Promise that resolves when all textures are loaded
+   */
+  private async preloadTextures(): Promise<void> {
+    const loadPromises = Object.values(ASSET_PATHS).map((path) => {
+      return this.loadTextureAsync(path);
+    });
+
+    try {
+      await Promise.all(loadPromises);
+      this.isLoaded = true;
+      console.log("All textures loaded successfully");
+    } catch (error) {
+      console.warn("Some textures failed to load, using fallbacks:", error);
+      this.isLoaded = true; // Still mark as loaded, fallbacks will be used
+    }
+  }
+
+  /**
+   * Wait for all assets to be loaded before starting game loop
+   * Call this method before starting the animation loop
+   */
+  async waitForLoad(): Promise<void> {
+    await this.loadingPromise;
+  }
+
+  /**
+   * Check if all assets are loaded
+   */
+  isReady(): boolean {
+    return this.isLoaded;
+  }
+
+  /**
+   * Load a texture asynchronously with Promise
+   */
+  private loadTextureAsync(path: string): Promise<THREE.Texture> {
+    return new Promise((resolve, reject) => {
+      if (this.textureCache.has(path)) {
+        resolve(this.textureCache.get(path)!);
+        return;
+      }
+
+      this.textureLoader.load(
+        path,
+        (loadedTexture) => {
+          loadedTexture.magFilter = THREE.NearestFilter; // Pixel art style
+          loadedTexture.minFilter = THREE.NearestFilter;
+          this.textureCache.set(path, loadedTexture);
+          console.log(`Texture loaded: ${path}`);
+          resolve(loadedTexture);
+        },
+        undefined,
+        (error) => {
+          console.warn(`Failed to load texture: ${path}`, error);
+          reject(error);
+        },
+      );
     });
   }
 
-  private loadTexture(path: string): THREE.Texture | null {
-    console.log("Loading texture:", path);
-    if (this.textureCache.has(path)) {
-      return this.textureCache.get(path)!;
-    }
-
-    const texture = this.textureLoader.load(
-      path,
-      (loadedTexture) => {
-        loadedTexture.magFilter = THREE.NearestFilter; // Pixel art style
-        loadedTexture.minFilter = THREE.NearestFilter;
-        this.textureCache.set(path, loadedTexture);
-      },
-      undefined,
-      () => {
-        // Texture failed to load, will use fallback
-        console.warn(`Failed to load texture: ${path}`);
-      },
-    );
-
-    return texture;
+  /**
+   * Get a texture from cache (synchronous, for use after preloading)
+   */
+  private getTexture(path: string): THREE.Texture | null {
+    return this.textureCache.get(path) || null;
   }
 
   private createEntityObject(entity: Entity): THREE.Object3D {
@@ -296,12 +338,12 @@ export class GameRenderer {
 
     const assetPath = ASSET_PATHS[entity.type];
     const size = ENTITY_SIZES[entity.type] || { width: 50, height: 50 };
-    const texture = assetPath ? this.loadTexture(assetPath) : null;
+    const texture = assetPath ? this.getTexture(assetPath) : null;
 
-    if (texture && this.textureCache.has(assetPath)) {
+    if (texture) {
       // Use sprite with texture
       const spriteMaterial = new THREE.SpriteMaterial({
-        map: this.textureCache.get(assetPath),
+        map: texture,
         transparent: true,
         alphaTest: 0.1,
       });
