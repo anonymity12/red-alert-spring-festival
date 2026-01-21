@@ -11,8 +11,13 @@ export enum EntityType {
 }
 
 export enum PlayerSide {
-  PLAYER1 = "player1",
-  PLAYER2 = "player2",
+  PLAYER1 = "player1", // Human player (Red)
+  PLAYER2 = "player2", // AI (Blue)
+}
+
+export enum GameMode {
+  PVE = "pve", // Player vs AI
+  PVP = "pvp", // Player vs Player (legacy)
 }
 
 export interface Position {
@@ -44,27 +49,74 @@ export interface Unit extends Entity {
   targetPosition?: Position; // target position for movement
   collectTarget?: string; // target resource id for collection
   path?: GridPosition[];
+  lastAttackTime?: number; // timestamp of last attack for cooldown
+  attackCooldown?: number; // milliseconds between attacks
 }
 
 export interface Building extends Entity {
   buildTime: number;
   isBuilding: boolean;
+  lastAttackTime?: number; // for towers
+  attackCooldown?: number; // for towers
 }
 
 export interface Resource extends Entity {
   amount: number;
 }
 
+// Projectile (arrows, firecrackers)
+export interface Projectile {
+  id: string;
+  sourceId: string; // Entity that fired this projectile
+  targetId: string; // Target entity
+  position: Position; // Current position
+  startPosition: Position; // Where it was fired from
+  targetPosition: Position; // Where it's going
+  damage: number;
+  speed: number;
+  type: "arrow" | "firework";
+  createdAt: number; // timestamp
+}
+
+// Wave configuration for PvE mode
+export interface WaveConfig {
+  waveNumber: number;
+  monsters: {
+    type: EntityType;
+    count: number;
+    spawnDelay: number; // ms between each spawn
+  }[];
+  preparationTime: number; // ms before wave starts
+  difficultyMultiplier: number; // health/damage multiplier
+}
+
+// AI State for managing computer-controlled side
+export interface AIState {
+  currentWave: number;
+  waveInProgress: boolean;
+  waveStartTime: number;
+  monstersSpawned: number;
+  monstersToSpawn: number;
+  lastSpawnTime: number;
+  nextWaveTime: number;
+  spawnPosition: Position; // Where monsters spawn
+}
+
 export interface GameState {
   entities: Map<string, Entity>;
+  projectiles: Map<string, Projectile>; // Active projectiles
   resources: {
     [PlayerSide.PLAYER1]: number;
     [PlayerSide.PLAYER2]: number;
   };
   selectedEntities: string[];
   currentPlayer: PlayerSide;
-  gameStatus: "waiting" | "playing" | "ended";
+  gameMode: GameMode;
+  gameStatus: "waiting" | "playing" | "ended" | "preparing"; // preparing = between waves
   winner?: PlayerSide;
+  aiState: AIState;
+  score: number; // Player score
+  monstersKilled: number;
 }
 
 export interface GameAction {

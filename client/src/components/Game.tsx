@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { GameEngine } from "../game/GameEngine";
 import { GameRenderer } from "../game/GameRenderer";
 import { GameState, PlayerSide, EntityType } from "../game/types";
+import { LOGIC_FRAME_TIME } from "../game/constants";
 import "./Game.css";
 
 const Game: React.FC = () => {
@@ -13,8 +14,15 @@ const Game: React.FC = () => {
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadingProgress, setLoadingProgress] = useState<string>("初始化...");
+  const [waveInfo, setWaveInfo] = useState<{
+    currentWave: number;
+    waveInProgress: boolean;
+    monstersRemaining: number;
+    timeToNextWave: number;
+  } | null>(null);
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const lastLogicUpdateRef = useRef<number>(0);
 
   // Show temporary message
   const showMessage = useCallback((msg: string) => {
@@ -48,18 +56,26 @@ const Game: React.FC = () => {
     // Set initial state
     setGameState(engine.getState());
 
-    // Game loop
+    // Game loop with separate render and logic update rates
     const animate = (time: number) => {
-      const deltaTime = lastTimeRef.current
-        ? (time - lastTimeRef.current) / 1000
-        : 0;
       lastTimeRef.current = time;
 
-      // Update game logic
-      engine.update(deltaTime);
+      // Update game logic at fixed rate (30 FPS)
+      const timeSinceLastLogic = time - lastLogicUpdateRef.current;
+      if (timeSinceLastLogic >= LOGIC_FRAME_TIME) {
+        const logicDelta = timeSinceLastLogic / 1000;
+        engine.update(logicDelta);
+        lastLogicUpdateRef.current = time;
 
-      // Render
-      renderer.updateEntities(engine.getState().entities);
+        // Update wave info
+        const ai = engine.getAIController();
+        setWaveInfo(ai.getWaveInfo());
+      }
+
+      // Render at full frame rate
+      const state = engine.getState();
+      renderer.updateEntities(state.entities);
+      renderer.updateProjectiles(state.projectiles);
       renderer.render();
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -269,29 +285,54 @@ const Game: React.FC = () => {
 
   const handleBuildTower = () => {
     if (engineRef.current) {
-      // Find a valid position near the base
-      const success = engineRef.current.processAction({
-        type: "build",
-        buildingType: EntityType.TOWER,
-        targetPosition: { row: 5, col: 5 },
-        player: PlayerSide.PLAYER1,
-      });
+      // Find an available position for tower
+      const positions = [
+        { row: 12, col: 5 },
+        { row: 10, col: 7 },
+        { row: 14, col: 4 },
+        { row: 8, col: 9 },
+        { row: 11, col: 8 },
+        { row: 13, col: 6 },
+      ];
+
+      let success = false;
+      for (const pos of positions) {
+        success = engineRef.current.processAction({
+          type: "build",
+          buildingType: EntityType.TOWER,
+          targetPosition: pos,
+          player: PlayerSide.PLAYER1,
+        });
+        if (success) break;
+      }
+
       if (success) {
         showMessage("🏯 建造防御塔!");
       } else {
-        showMessage("❌ 资源不足或位置无效");
+        showMessage("❌ 资源不足或所有位置被占用");
       }
     }
   };
 
   const handleBuildBarracks = () => {
     if (engineRef.current) {
-      const success = engineRef.current.processAction({
-        type: "build",
-        buildingType: EntityType.BARRACKS,
-        targetPosition: { row: 8, col: 8 },
-        player: PlayerSide.PLAYER1,
-      });
+      const positions = [
+        { row: 15, col: 5 },
+        { row: 13, col: 3 },
+        { row: 16, col: 4 },
+      ];
+
+      let success = false;
+      for (const pos of positions) {
+        success = engineRef.current.processAction({
+          type: "build",
+          buildingType: EntityType.BARRACKS,
+          targetPosition: pos,
+          player: PlayerSide.PLAYER1,
+        });
+        if (success) break;
+      }
+
       if (success) {
         showMessage("🏠 建造兵营!");
       } else {
@@ -315,21 +356,6 @@ const Game: React.FC = () => {
     }
   };
 
-  const handleProduceBeast = () => {
-    if (engineRef.current) {
-      const success = engineRef.current.processAction({
-        type: "produce",
-        unitType: EntityType.NIAN_BEAST,
-        player: PlayerSide.PLAYER1,
-      });
-      if (success) {
-        showMessage("🐉 召唤年兽!");
-      } else {
-        showMessage("❌ 需要先建造兵营或资源不足");
-      }
-    }
-  };
-
   const handleProduceCollector = () => {
     if (engineRef.current) {
       const success = engineRef.current.processAction({
@@ -345,6 +371,11 @@ const Game: React.FC = () => {
     }
   };
 
+  const formatTime = (ms: number): string => {
+    const seconds = Math.ceil(ms / 1000);
+    return `${seconds}秒`;
+  };
+
   return (
     <div className="game-container">
       {/* Loading overlay */}
@@ -352,7 +383,7 @@ const Game: React.FC = () => {
         <div className="loading-overlay">
           <div className="loading-content">
             <div className="loading-spinner">🎮</div>
-            <h2>春节攻防战</h2>
+            <h2>春节保卫战</h2>
             <p>{loadingProgress}</p>
             <div className="loading-bar">
               <div className="loading-bar-fill"></div>
@@ -362,23 +393,46 @@ const Game: React.FC = () => {
       )}
 
       <div className="game-header">
-        <h1>春节攻防战 - Spring Festival Battle</h1>
+        <h1>🏮 春节保卫战 - Spring Festival Defense 🏮</h1>
         {gameState && (
           <div className="game-info">
             <div className="resources">
               <span className="resource-display player1">
-                🧧 玩家1资源: {gameState.resources[PlayerSide.PLAYER1]}
+                🧧 资源: {Math.floor(gameState.resources[PlayerSide.PLAYER1])}
               </span>
-              <span className="resource-display player2">
-                🧧 玩家2资源: {gameState.resources[PlayerSide.PLAYER2]}
+              <span className="score-display">⭐ 得分: {gameState.score}</span>
+              <span className="kills-display">
+                💀 击杀: {gameState.monstersKilled}
               </span>
             </div>
+
+            {/* Wave info */}
+            {waveInfo && (
+              <div className="wave-info">
+                <span className="wave-number">
+                  🌊 第 {waveInfo.currentWave} 波
+                </span>
+                {waveInfo.waveInProgress ? (
+                  <span className="wave-status attacking">
+                    ⚠️ 进攻中 - 剩余敌人: {waveInfo.monstersRemaining}
+                  </span>
+                ) : (
+                  <span className="wave-status preparing">
+                    🛡️ 准备阶段 - 下一波: {formatTime(waveInfo.timeToNextWave)}
+                  </span>
+                )}
+              </div>
+            )}
+
             {gameState.gameStatus === "ended" && (
               <div className="game-over">
-                🎉 游戏结束! 胜利者:{" "}
-                {gameState.winner === PlayerSide.PLAYER1
-                  ? "玩家1 (红方)"
-                  : "玩家2 (蓝方)"}
+                {gameState.winner === PlayerSide.PLAYER1 ? (
+                  <span>🎉 胜利! 你成功保卫了基地!</span>
+                ) : (
+                  <span>
+                    💔 失败! 基地被摧毁了! 最终得分: {gameState.score}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -389,33 +443,62 @@ const Game: React.FC = () => {
         <div className="game-canvas" ref={canvasRef} />
 
         <div className="game-controls">
-          <h3>控制面板</h3>
+          <h3>🎛️ 控制面板</h3>
 
           {selectedInfo && <div className="selected-info">{selectedInfo}</div>}
 
           <div className="control-section">
-            <h4>建筑 Buildings</h4>
-            <button onClick={handleBuildTower}>🏯 建造防御塔 (150)</button>
-            <button onClick={handleBuildBarracks}>🏠 建造兵营 (200)</button>
+            <h4>🏗️ 建筑</h4>
+            <button onClick={handleBuildTower} className="build-btn">
+              🏯 防御塔 (150)
+              <span className="btn-desc">远程攻击敌人</span>
+            </button>
+            <button onClick={handleBuildBarracks} className="build-btn">
+              🏠 兵营 (200)
+              <span className="btn-desc">训练士兵</span>
+            </button>
           </div>
 
           <div className="control-section">
-            <h4>单位 Units</h4>
-            <button onClick={handleProduceCollector}>📦 训练采集者 (50)</button>
-            <button onClick={handleProduceSoldier}>🧨 训练鞭炮兵 (75)</button>
-            <button onClick={handleProduceBeast}>🐉 召唤年兽 (120)</button>
+            <h4>👥 单位</h4>
+            <button onClick={handleProduceCollector} className="unit-btn">
+              📦 采集者 (50)
+              <span className="btn-desc">采集资源</span>
+            </button>
+            <button onClick={handleProduceSoldier} className="unit-btn">
+              🧨 鞭炮兵 (75)
+              <span className="btn-desc">远程攻击</span>
+            </button>
           </div>
 
           <div className="control-section">
-            <h4>图例 Legend</h4>
+            <h4>📖 操作说明</h4>
+            <div className="instructions">
+              <p>
+                🖱️ <strong>左键</strong>: 选择单位
+              </p>
+              <p>
+                🖱️ <strong>右键</strong>: 移动/攻击/采集
+              </p>
+              <p>
+                🏯 <strong>防御塔</strong>: 自动攻击敌人
+              </p>
+              <p>
+                🎯 <strong>目标</strong>: 保卫基地!
+              </p>
+            </div>
+          </div>
+
+          <div className="control-section">
+            <h4>📊 图例</h4>
             <div className="legend">
               <div className="legend-item">
                 <span className="color-box red"></span>
-                <span>玩家1 (红方)</span>
+                <span>我方单位</span>
               </div>
               <div className="legend-item">
                 <span className="color-box blue"></span>
-                <span>玩家2 (蓝方)</span>
+                <span>敌方年兽</span>
               </div>
               <div className="legend-item">
                 <span className="color-box gold"></span>
@@ -423,26 +506,11 @@ const Game: React.FC = () => {
               </div>
             </div>
           </div>
-
-          <div className="control-section">
-            <h4>操作说明</h4>
-            <p>
-              🖱️ <strong>左键点击</strong>: 选择己方单位
-            </p>
-            <p>
-              🖱️ <strong>右键点击</strong>: 移动/攻击/采集
-            </p>
-            <p>
-              🏗️ <strong>建造</strong>: 点击建筑按钮
-            </p>
-            <p>
-              ⚔️ <strong>目标</strong>: 摧毁敌方基地!
-            </p>
-          </div>
         </div>
       </div>
+
       {/* Game message overlay */}
-      <div className="game-message">新闻: {message}</div>
+      {message && <div className="game-message">{message}</div>}
     </div>
   );
 };

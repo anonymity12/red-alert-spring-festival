@@ -3,43 +3,131 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1b1b 50%, #1a0a2e 100%);
 }
 
 .game-header {
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px 20px;
+    background: linear-gradient(
+        180deg,
+        rgba(139, 0, 0, 0.95) 0%,
+        rgba(80, 0, 0, 0.9) 100%
+    );
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     z-index: 10;
+    border-bottom: 3px solid #ffd700;
 }
 
 .game-header h1 {
     margin: 0;
-    color: #d32f2f;
-    font-size: 28px;
+    color: #ffd700;
+    font-size: 26px;
     text-align: center;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    text-shadow:
+        2px 2px 4px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(255, 215, 0, 0.3);
 }
 
 .game-info {
     margin-top: 10px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .resources {
     display: flex;
+    justify-content: center;
     gap: 30px;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
 }
 
+.resource-display {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.score-display {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.kills-display {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+/* Wave Info Display */
+.wave-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    margin-top: 5px;
+}
+
+.wave-number {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.wave-status {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 5px 15px;
+    border-radius: 15px;
+}
+
+.wave-status.attacking {
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+    color: white;
+    animation: pulse-warning 1s infinite;
+}
+
+.wave-status.preparing {
+    background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+    color: white;
+}
+
+@keyframes pulse-warning {
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+    }
+}
+
 .game-over {
-    color: #d32f2f;
+    text-align: center;
+    padding: 15px;
     font-size: 24px;
     font-weight: bold;
     animation: pulse 1s infinite;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 10px;
+    margin-top: 10px;
+}
+
+.game-over span {
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
 }
 
 @keyframes pulse {
@@ -55,8 +143,8 @@
 .game-content {
     flex: 1;
     display: flex;
-    gap: 20px;
-    padding: 20px;
+    gap: 15px;
+    padding: 15px;
     overflow: hidden;
 }
 
@@ -67,97 +155,147 @@
     background: #1a1a2e;
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 4px 30px rgba(0, 0, 0, 0.5),
+        inset 0 0 50px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(139, 0, 0, 0.5);
 }
 
 .game-controls {
-    width: 300px;
-    background: rgba(255, 255, 255, 0.95);
+    width: 280px;
+    background: linear-gradient(
+        180deg,
+        rgba(40, 20, 20, 0.95) 0%,
+        rgba(30, 15, 15, 0.95) 100%
+    );
     border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
+    border: 2px solid rgba(139, 0, 0, 0.5);
 }
 
 .game-controls h3 {
-    margin: 0 0 20px 0;
-    color: #333;
-    border-bottom: 2px solid #d32f2f;
+    margin: 0 0 15px 0;
+    color: #ffd700;
+    border-bottom: 2px solid #8b0000;
     padding-bottom: 10px;
+    text-align: center;
+    font-size: 18px;
 }
 
 .control-section {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 .control-section h4 {
     margin: 0 0 10px 0;
-    color: #555;
-    font-size: 16px;
+    color: #ffcccc;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
+/* Button Styles */
 .control-section button {
     width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    padding: 12px 10px;
+    margin-bottom: 8px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    transition:
-        transform 0.2s,
-        box-shadow 0.2s;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
 }
 
-.control-section button:hover {
+.build-btn {
+    background: linear-gradient(135deg, #8b4513 0%, #654321 100%);
+    color: #ffd700;
+    border: 2px solid #8b4513 !important;
+}
+
+.build-btn:hover {
+    background: linear-gradient(135deg, #a0522d 0%, #8b4513 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);
+}
+
+.unit-btn {
+    background: linear-gradient(135deg, #8b0000 0%, #5c0000 100%);
+    color: #ffcccc;
+    border: 2px solid #8b0000 !important;
+}
+
+.unit-btn:hover {
+    background: linear-gradient(135deg, #a00000 0%, #8b0000 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(139, 0, 0, 0.4);
+}
+
+.btn-desc {
+    font-size: 11px;
+    font-weight: normal;
+    opacity: 0.8;
 }
 
 .control-section button:active {
     transform: translateY(0);
 }
 
+/* Instructions */
+.instructions {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.instructions p {
+    margin: 5px 0;
+    font-size: 12px;
+    color: #ccc;
+    line-height: 1.4;
+}
+
+/* Legend */
 .legend {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 14px;
+    font-size: 13px;
+    color: #ccc;
 }
 
 .color-box {
     width: 20px;
     height: 20px;
-    border-radius: 3px;
-    border: 1px solid #333;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .color-box.red {
-    background: #ff0000;
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
 }
 
 .color-box.blue {
-    background: #0000ff;
+    background: linear-gradient(135deg, #4444ff 0%, #0000cc 100%);
 }
 
 .color-box.gold {
-    background: #ffd700;
-}
-
-.control-section p {
-    margin: 5px 0;
-    font-size: 13px;
-    color: #666;
-    line-height: 1.5;
+    background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
 }
 
 /* Loading Overlay */
@@ -167,7 +305,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1b1b 50%, #1a0a2e 100%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -196,9 +334,9 @@
 
 .loading-content h2 {
     margin: 20px 0 10px 0;
-    font-size: 32px;
+    font-size: 36px;
     color: #ff6b6b;
-    text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+    text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
 }
 
 .loading-content p {
@@ -219,57 +357,52 @@
 .loading-bar-fill {
     height: 100%;
     width: 100%;
-    background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff);
-    background-size: 300% 100%;
+    background: linear-gradient(90deg, #ff6b6b, #ffd93d, #ff6b6b);
+    background-size: 200% 100%;
     border-radius: 4px;
-    animation: loading-progress 1.5s ease-in-out infinite;
+    animation: loading-progress 1s ease-in-out infinite;
 }
 
 @keyframes loading-progress {
     0% {
         background-position: 0% 0%;
     }
-    50% {
-        background-position: 100% 0%;
-    }
     100% {
-        background-position: 0% 0%;
+        background-position: 200% 0%;
     }
 }
 
 /* Game message overlay */
 .game-message {
     position: fixed;
-    top: 95%;
+    bottom: 30px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
+    transform: translateX(-50%);
+    background: linear-gradient(
+        135deg,
+        rgba(139, 0, 0, 0.95) 0%,
+        rgba(80, 0, 0, 0.95) 100%
+    );
+    color: #ffd700;
     padding: 15px 30px;
     border-radius: 10px;
     font-size: 18px;
     font-weight: bold;
     z-index: 100;
-    animation: fadeInOut 2s ease-in-out;
+    animation: slideUp 0.3s ease-out;
     pointer-events: none;
+    border: 2px solid #ffd700;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
-@keyframes fadeInOut {
+@keyframes slideUp {
     0% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8);
-    }
-    15% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    85% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
+        transform: translateX(-50%) translateY(20px);
     }
     100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
     }
 }
 
@@ -278,8 +411,29 @@
     background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
     color: white;
     padding: 10px 15px;
-    border-radius: 5px;
+    border-radius: 8px;
     margin-bottom: 15px;
     font-weight: bold;
     text-align: center;
+    font-size: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Scrollbar styling */
+.game-controls::-webkit-scrollbar {
+    width: 8px;
+}
+
+.game-controls::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.game-controls::-webkit-scrollbar-thumb {
+    background: #8b0000;
+    border-radius: 4px;
+}
+
+.game-controls::-webkit-scrollbar-thumb:hover {
+    background: #a00000;
 }

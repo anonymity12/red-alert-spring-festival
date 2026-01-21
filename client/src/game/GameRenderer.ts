@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { Entity, EntityType, PlayerSide } from "./types";
-import { TILE_SIZE, GRID_SIZE } from "./constants";
+import { Entity, EntityType, PlayerSide, Projectile } from "./types";
+import { TILE_SIZE, GRID_SIZE, PROJECTILE_CONFIG } from "./constants";
 
 // 资源路径映射
 const ASSET_PATHS: Record<string, string> = {
@@ -29,6 +29,8 @@ export class GameRenderer {
   private camera: THREE.OrthographicCamera;
   private renderer: THREE.WebGLRenderer;
   private entityMeshes: Map<string, THREE.Object3D>;
+  private projectileMeshes: Map<string, THREE.Object3D>;
+  private particleSystems: Map<string, THREE.Points>;
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
   private textureLoader: THREE.TextureLoader;
@@ -40,6 +42,8 @@ export class GameRenderer {
   constructor(container: HTMLElement) {
     this.container = container;
     this.entityMeshes = new Map();
+    this.projectileMeshes = new Map();
+    this.particleSystems = new Map();
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.textureLoader = new THREE.TextureLoader();
@@ -643,6 +647,173 @@ export class GameRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /**
+   * Update projectile visuals
+   */
+  updateProjectiles(projectiles: Map<string, Projectile>) {
+    // Remove meshes for deleted projectiles
+    const currentIds = new Set(projectiles.keys());
+    for (const [id, obj] of this.projectileMeshes) {
+      if (!currentIds.has(id)) {
+        this.scene.remove(obj);
+        this.projectileMeshes.delete(id);
+        // Also remove associated particle system
+        const particles = this.particleSystems.get(id);
+        if (particles) {
+          this.scene.remove(particles);
+          this.particleSystems.delete(id);
+        }
+      }
+    }
+
+    // Update or create projectile visuals
+    for (const [id, projectile] of projectiles) {
+      let obj = this.projectileMeshes.get(id);
+
+      if (!obj) {
+        obj = this.createProjectileObject(projectile);
+        this.scene.add(obj);
+        this.projectileMeshes.set(id, obj);
+
+        // Create trail particles
+        const particles = this.createProjectileTrail(projectile);
+        this.scene.add(particles);
+        this.particleSystems.set(id, particles);
+      }
+
+      // Update position
+      obj.position.set(
+        projectile.position.x,
+        projectile.position.y,
+        projectile.position.z,
+      );
+
+      // Update trail particles position
+      const particles = this.particleSystems.get(id);
+      if (particles) {
+        this.updateProjectileTrail(particles, projectile);
+      }
+
+      // Rotate projectile to face direction of travel
+      const dx = projectile.targetPosition.x - projectile.position.x;
+      const dz = projectile.targetPosition.z - projectile.position.z;
+      obj.rotation.y = Math.atan2(dx, dz);
+    }
+  }
+
+  /**
+   * Create a projectile visual object
+   */
+  private createProjectileObject(projectile: Projectile): THREE.Object3D {
+    const group = new THREE.Group();
+    const config = PROJECTILE_CONFIG[projectile.type];
+
+    if (projectile.type === "arrow") {
+      // Create arrow shape
+      const shaftGeometry = new THREE.CylinderGeometry(1, 1, 20, 6);
+      const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0x8b4513 }); // Brown
+      const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+      shaft.rotation.x = Math.PI / 2;
+      group.add(shaft);
+
+      // Arrowhead
+      const headGeometry = new THREE.ConeGeometry(3, 8, 6);
+      const headMaterial = new THREE.MeshBasicMaterial({ color: config.color });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.rotation.x = Math.PI / 2;
+      head.position.z = 14;
+      group.add(head);
+    } else {
+      // Firework projectile - glowing sphere
+      const geometry = new THREE.SphereGeometry(config.size, 8, 8);
+      const material = new THREE.MeshBasicMaterial({
+        color: config.color,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const sphere = new THREE.Mesh(geometry, material);
+      group.add(sphere);
+
+      // Add glow effect
+      const glowGeometry = new THREE.SphereGeometry(config.size * 1.5, 8, 8);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.3,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      group.add(glow);
+    }
+
+    return group;
+  }
+
+  /**
+   * Create particle trail for projectile
+   */
+  private createProjectileTrail(projectile: Projectile): THREE.Points {
+    const particleCount = 15;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    const sizes = new Float32Array(particleCount);
+
+    const config = PROJECTILE_CONFIG[projectile.type];
+    const color = new THREE.Color(config.color);
+
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = projectile.position.x;
+      positions[i * 3 + 1] = projectile.position.y;
+      positions[i * 3 + 2] = projectile.position.z;
+
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+
+      sizes[i] = config.size * (1 - i / particleCount) * 0.5;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
+
+    const material = new THREE.PointsMaterial({
+      size: 5,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      sizeAttenuation: true,
+    });
+
+    return new THREE.Points(geometry, material);
+  }
+
+  /**
+   * Update particle trail positions
+   */
+  private updateProjectileTrail(
+    particles: THREE.Points,
+    projectile: Projectile,
+  ): void {
+    const positions = particles.geometry.attributes.position
+      .array as Float32Array;
+    const particleCount = positions.length / 3;
+
+    // Shift all particles back
+    for (let i = particleCount - 1; i > 0; i--) {
+      positions[i * 3] = positions[(i - 1) * 3];
+      positions[i * 3 + 1] = positions[(i - 1) * 3 + 1];
+      positions[i * 3 + 2] = positions[(i - 1) * 3 + 2];
+    }
+
+    // Set first particle to current position
+    positions[0] = projectile.position.x;
+    positions[1] = projectile.position.y;
+    positions[2] = projectile.position.z;
+
+    particles.geometry.attributes.position.needsUpdate = true;
+  }
+
   private handleResize = () => {
     const aspect = this.container.clientWidth / this.container.clientHeight;
     const worldSize = GRID_SIZE * TILE_SIZE;
@@ -690,6 +861,26 @@ export class GameRenderer {
           child.material.dispose();
         }
       });
+    });
+
+    // Dispose projectile meshes
+    this.projectileMeshes.forEach((obj) => {
+      obj.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((m) => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
+    });
+
+    // Dispose particle systems
+    this.particleSystems.forEach((particles) => {
+      particles.geometry.dispose();
+      (particles.material as THREE.PointsMaterial).dispose();
     });
 
     this.renderer.dispose();
