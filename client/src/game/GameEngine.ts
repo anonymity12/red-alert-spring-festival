@@ -15,6 +15,7 @@ import {
   gridToWorld,
   isValidGridPosition,
   GRID_SIZE,
+  COLLISION_RADII,
 } from "./constants";
 
 export class GameEngine {
@@ -71,7 +72,7 @@ export class GameEngine {
     entities.set(collector1Id, {
       id: collector1Id,
       type: EntityType.COLLECTOR,
-      position: gridToWorld({ row: 3, col: 3 }),
+      position: gridToWorld({ row: 5, col: 4 }),
       health: ENTITY_STATS[EntityType.COLLECTOR].maxHealth,
       maxHealth: ENTITY_STATS[EntityType.COLLECTOR].maxHealth,
       owner: PlayerSide.PLAYER1,
@@ -144,13 +145,24 @@ export class GameEngine {
     if (unit.speed === undefined) return false;
 
     if (isValidGridPosition(action.targetPosition)) {
-      // Set target position for gradual movement (don't teleport!)
-      unit.targetPosition = gridToWorld(action.targetPosition);
-      // Clear attack and collect targets when moving
-      unit.target = undefined;
-      unit.collectTarget = undefined;
-      this.notifyUpdate();
-      return true;
+      // Convert grid position to world position
+      const worldTarget = gridToWorld(action.targetPosition);
+
+      // Find a valid position that doesn't collide with obstacles
+      const validTarget = this.findValidPosition(unit, worldTarget);
+
+      if (validTarget) {
+        // Set target position for gradual movement (don't teleport!)
+        unit.targetPosition = validTarget;
+        // Clear attack and collect targets when moving
+        unit.target = undefined;
+        unit.collectTarget = undefined;
+        this.notifyUpdate();
+        return true;
+      }
+
+      // No valid position found - can't move there
+      return false;
     }
 
     return false;
@@ -200,6 +212,19 @@ export class GameEngine {
     if (this.state.resources[action.player] < cost) return false;
 
     if (!isValidGridPosition(action.targetPosition)) return false;
+
+    // Check if the build location is blocked by existing entities
+    const buildPos = gridToWorld(action.targetPosition);
+    const buildRadius = COLLISION_RADII[action.buildingType] || 40;
+
+    for (const entity of this.state.entities.values()) {
+      const entityRadius = COLLISION_RADII[entity.type] || 20;
+      const distance = this.distanceBetween(buildPos, entity.position);
+      if (distance < buildRadius + entityRadius) {
+        // Location blocked by existing entity
+        return false;
+      }
+    }
 
     const buildingId = generateEntityId();
 
@@ -257,10 +282,8 @@ export class GameEngine {
 
     const unitId = generateEntityId();
 
-    // Spawn near the building
-    const spawnPos = { ...spawnBuilding.position };
-    spawnPos.x += 50;
-    spawnPos.z += 50;
+    // Find a valid spawn position near the building (not colliding with anything)
+    const spawnPos = this.findSpawnPosition(spawnBuilding.position);
 
     this.state.entities.set(unitId, {
       id: unitId,
@@ -313,6 +336,84 @@ export class GameEngine {
     return Math.sqrt(dx * dx + dz * dz);
   }
 
+  /**
+   * Check if a position would collide with any entity
+   * @param pos The position to check
+   * @param radius The collision radius of the moving entity
+   * @param excludeId Entity ID to exclude from collision check (usually the moving unit itself)
+   * @param allowedTargetId Entity ID that is allowed to collide (e.g., attack target or collect target)
+   * @returns The entity that would be collided with, or null if no collision
+   */
+  private checkCollision(
+    pos: Position,
+    radius: number,
+    excludeId: string,
+    allowedTargetId?: string,
+  ): Entity | null {
+    for (const entity of this.state.entities.values()) {
+      // Skip the moving entity itself
+      if (entity.id === excludeId) continue;
+
+      // Skip allowed target (e.g., resource being collected or enemy being attacked)
+      if (allowedTargetId && entity.id === allowedTargetId) continue;
+
+      // Get collision radius for this entity
+      const entityRadius = COLLISION_RADII[entity.type] || 20;
+
+      // Calculate distance between positions
+      const distance = this.distanceBetween(pos, entity.position);
+
+      // Check if circles overlap (collision)
+      const minDistance = radius + entityRadius;
+      if (distance < minDistance) {
+        return entity;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find a valid position near the target that doesn't collide with obstacles
+   * @param unit The moving unit
+   * @param target The desired target position
+   * @returns A valid position or null if completely blocked
+   */
+  private findValidPosition(unit: Unit, target: Position): Position | null {
+    const unitRadius = COLLISION_RADII[unit.type] || 12;
+    const allowedTarget = unit.target || unit.collectTarget;
+
+    // First check if target itself is valid
+    if (!this.checkCollision(target, unitRadius, unit.id, allowedTarget)) {
+      return target;
+    }
+
+    // Try positions around the target in a circle
+    const offsets = [
+      { x: 0, z: -40 },
+      { x: 40, z: 0 },
+      { x: 0, z: 40 },
+      { x: -40, z: 0 },
+      { x: 30, z: -30 },
+      { x: 30, z: 30 },
+      { x: -30, z: 30 },
+      { x: -30, z: -30 },
+    ];
+
+    for (const offset of offsets) {
+      const testPos: Position = {
+        x: target.x + offset.x,
+        y: target.y,
+        z: target.z + offset.z,
+      };
+      if (!this.checkCollision(testPos, unitRadius, unit.id, allowedTarget)) {
+        return testPos;
+      }
+    }
+
+    // If all positions are blocked, stay where we are
+    return null;
+  }
+
   private moveTowards(
     unit: Unit,
     target: Position,
@@ -320,6 +421,8 @@ export class GameEngine {
   ): boolean {
     const distance = this.distanceBetween(unit.position, target);
     const moveSpeed = unit.speed * 50; // Scale speed for visual movement
+    const unitRadius = COLLISION_RADII[unit.type] || 12;
+    const allowedTarget = unit.target || unit.collectTarget;
 
     if (distance < 5) {
       // Close enough, stop moving
@@ -328,15 +431,62 @@ export class GameEngine {
       return true; // Arrived
     }
 
-    // Calculate direction and move
+    // Calculate direction and potential new position
     const dx = target.x - unit.position.x;
     const dz = target.z - unit.position.z;
     const len = Math.sqrt(dx * dx + dz * dz);
 
-    unit.position.x += (dx / len) * moveSpeed * deltaTime;
-    unit.position.z += (dz / len) * moveSpeed * deltaTime;
+    const moveX = (dx / len) * moveSpeed * deltaTime;
+    const moveZ = (dz / len) * moveSpeed * deltaTime;
 
-    return false; // Still moving
+    const newPos: Position = {
+      x: unit.position.x + moveX,
+      y: unit.position.y,
+      z: unit.position.z + moveZ,
+    };
+
+    // Check for collision at new position
+    const collision = this.checkCollision(
+      newPos,
+      unitRadius,
+      unit.id,
+      allowedTarget,
+    );
+
+    if (!collision) {
+      // No collision, move normally
+      unit.position.x = newPos.x;
+      unit.position.z = newPos.z;
+      return false; // Still moving
+    }
+
+    // Collision detected - try to slide along the obstacle
+    // Try moving only in X direction
+    const slideX: Position = {
+      x: unit.position.x + moveX,
+      y: unit.position.y,
+      z: unit.position.z,
+    };
+    if (!this.checkCollision(slideX, unitRadius, unit.id, allowedTarget)) {
+      unit.position.x = slideX.x;
+      return false;
+    }
+
+    // Try moving only in Z direction
+    const slideZ: Position = {
+      x: unit.position.x,
+      y: unit.position.y,
+      z: unit.position.z + moveZ,
+    };
+    if (!this.checkCollision(slideZ, unitRadius, unit.id, allowedTarget)) {
+      unit.position.z = slideZ.z;
+      return false;
+    }
+
+    // Completely blocked - stop here
+    // Clear target position since we can't reach it
+    unit.targetPosition = undefined;
+    return true; // Treat as arrived (blocked)
   }
 
   private updateUnits(deltaTime: number) {
@@ -440,6 +590,54 @@ export class GameEngine {
     for (const id of entitiesToRemove) {
       this.state.entities.delete(id);
     }
+  }
+
+  /**
+   * Find a valid spawn position near a building that doesn't collide with other entities
+   */
+  private findSpawnPosition(buildingPos: Position): Position {
+    const spawnOffsets = [
+      { x: 60, z: 60 },
+      { x: 60, z: 0 },
+      { x: 0, z: 60 },
+      { x: -60, z: 60 },
+      { x: 60, z: -60 },
+      { x: 80, z: 80 },
+      { x: -60, z: 0 },
+      { x: 0, z: -60 },
+    ];
+
+    const testRadius = 12; // Approximate unit radius
+
+    for (const offset of spawnOffsets) {
+      const testPos: Position = {
+        x: buildingPos.x + offset.x,
+        y: 0,
+        z: buildingPos.z + offset.z,
+      };
+
+      // Check if this position is free (no collisions)
+      let collision = false;
+      for (const entity of this.state.entities.values()) {
+        const entityRadius = COLLISION_RADII[entity.type] || 20;
+        const distance = this.distanceBetween(testPos, entity.position);
+        if (distance < testRadius + entityRadius) {
+          collision = true;
+          break;
+        }
+      }
+
+      if (!collision) {
+        return testPos;
+      }
+    }
+
+    // Fallback: return default offset position
+    return {
+      x: buildingPos.x + 60,
+      y: 0,
+      z: buildingPos.z + 60,
+    };
   }
 
   private checkWinCondition() {

@@ -289,7 +289,7 @@ const Game: React.FC = () => {
       const success = engineRef.current.processAction({
         type: "build",
         buildingType: EntityType.BARRACKS,
-        targetPosition: { row: 4, col: 4 },
+        targetPosition: { row: 8, col: 8 },
         player: PlayerSide.PLAYER1,
       });
       if (success) {
