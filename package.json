@@ -1,0 +1,49 @@
+{
+  "name": "red-alert-spring-festival",
+  "version": "1.0.0",
+  "description": "Spring Festival Battle - A 2.5D RTS Game with Chinese New Year Theme",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.js",
+    "server:dev": "nodemon server/index.js",
+    "generate-assets": "node scripts/generate-assets.js",
+    "generate-spritesheet": "node scripts/generate-spritesheet.js",
+    "compress-png": "node scripts/compress_png.js",
+    "start": "concurrently \"npm run dev\" \"npm run server\""
+  },
+  "keywords": [
+    "rts",
+    "game",
+    "spring-festival",
+    "chinese-new-year",
+    "three.js",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.182.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.11",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.33.5"
+  }
+}
